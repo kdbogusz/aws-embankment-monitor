@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 SPREAD = 0.02  # 0.02
 LENGTH = 100  # 1000
-LENGTH_BETWEEN = 10  # 5
+LENGTH_BETWEEN = 5  # 5
 HEIGHT = 5  # 5
 HEIGHT_BETWEEN = 1  # 1
 DELAY = 5  # 1s
@@ -17,9 +17,15 @@ BREAK_WIDTH = 20  # 80m (left side + right side)
 MQTT_PORT = 8883
 MQTT_KEEPALIVE_INTERVAL = 45
 MQTT_HOST = "a3r21ql3ppgl2q-ats.iot.us-east-2.amazonaws.com"
+#Konrad config
 CA_ROOT_CERT_FILE = "C:/Users/nuttard/Desktop/AAA/root-CA.crt"
 THING_CERT_FILE = "C:/Users/nuttard/Desktop/AAA/embankment-monitor.cert.pem"
 THING_PRIVATE_KEY = "C:/Users/nuttard/Desktop/AAA/embankment-monitor.private.key"
+
+#Bartek config
+#CA_ROOT_CERT_FILE = "C:/Users/DP/Desktop/aws-embankment-monitor/aws-stuff-2/root-CA.crt"
+#THING_CERT_FILE = "C:/Users/DP/Desktop/aws-embankment-monitor/aws-stuff-2/embankment-monitor.cert.pem"
+#THING_PRIVATE_KEY = "C:/Users/DP/Desktop/aws-embankment-monitor/aws-stuff-2/embankment-monitor.private.key"
 
 
 def generate_random_temperature(this_height):
@@ -108,9 +114,6 @@ def program_loop(break_time, break_place, break_side, mqttc):
         current_time += 1
         mqtt_send("left", sensor_readings_1, mqttc)
         mqtt_send("right", sensor_readings_2, mqttc)
-        # plt.imshow(sensor_readings_1, extent=[0, 995, 0, 400], cmap=matplotlib.cm.autumn_r)
-        # plt.gca().invert_yaxis()
-        # plt.show()
         sleep(DELAY)
 
 

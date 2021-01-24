@@ -31,7 +31,6 @@ mqttc.loop_start()
 
 counter = 0
 
-counter = 0
 while True:
     mqttc.publish(MQTT_TOPIC,MQTT_MSG + str(counter),qos=1)
     counter += 1

@@ -7,12 +7,13 @@ from random import uniform
 import matplotlib.pyplot as plt
 
 SPREAD = 0.02  # 0.02
-LENGTH = 100  # 1000
+LENGTH = 1000  # 1000
 LENGTH_BETWEEN = 5  # 5
 HEIGHT = 5  # 5
 HEIGHT_BETWEEN = 1  # 1
-DELAY = 5  # 1s
-BREAK_WIDTH = 20  # 80m (left side + right side)
+DELAY = 10  # 10s
+BREAK_WIDTH = 80  # 80m (left side + right side)
+NODE_COUNT = LENGTH // LENGTH_BETWEEN * HEIGHT // HEIGHT_BETWEEN
 
 MQTT_PORT = 8883
 MQTT_KEEPALIVE_INTERVAL = 45
@@ -114,7 +115,6 @@ def program_loop(break_time, break_place, break_side, mqttc):
         current_time += 1
         mqtt_send("left", sensor_readings_1, mqttc)
         mqtt_send("right", sensor_readings_2, mqttc)
-        sleep(DELAY)
 
 
 def mqtt_init():
@@ -133,6 +133,7 @@ def mqtt_send(side, data, mqttc):
             topic_layer_3 = topic_layer_2 + "/" + str(j * LENGTH_BETWEEN)
             mqttc.publish(topic_layer_3, str(data[i][j]), qos=0)
             print(topic_layer_3)
+            sleep(DELAY / NODE_COUNT)
 
 
 program_loop(3, 50, "left", mqtt_init())

@@ -31,7 +31,7 @@ LENGTH = 1000  # 1000
 LENGTH_BETWEEN = 5  # 5
 HEIGHT = 5  # 5
 HEIGHT_BETWEEN = 1  # 1
-DELAY = 10  # 10s
+DELAY = 20  # 20s
 BREAK_WIDTH = 80  # 80m (left side + right side)
 
 DATA_LEFT = [[-1]*int(LENGTH//LENGTH_BETWEEN) for i in range(int(HEIGHT//HEIGHT_BETWEEN))]
@@ -71,11 +71,3 @@ while True:
     sleep(DELAY)
     draw("Left Embankment")
     draw("Right Embankment")
-
-
-
-
-
-
-
-

@@ -11,8 +11,8 @@ LENGTH = 1000  # 1000
 LENGTH_BETWEEN = 5  # 5
 HEIGHT = 5  # 5
 HEIGHT_BETWEEN = 1  # 1
-DELAY = 10  # 10s
-BREAK_WIDTH = 80  # 80m (left side + right side)
+DELAY = 20  # 20s
+BREAK_WIDTH = 200  # 80m (left side + right side)
 NODE_COUNT = LENGTH // LENGTH_BETWEEN * HEIGHT // HEIGHT_BETWEEN
 
 MQTT_PORT = 8883
@@ -133,7 +133,7 @@ def mqtt_send(side, data, mqttc):
             topic_layer_3 = topic_layer_2 + "/" + str(j * LENGTH_BETWEEN)
             mqttc.publish(topic_layer_3, str(data[i][j]), qos=0)
             print(topic_layer_3)
-            sleep(DELAY / NODE_COUNT)
+            sleep(DELAY / NODE_COUNT / 2)
 
 
-program_loop(3, 50, "left", mqtt_init())
+program_loop(1, 400, "left", mqtt_init())

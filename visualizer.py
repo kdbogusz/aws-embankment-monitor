@@ -1,48 +1,41 @@
-
-
-# Define Variables
-import threading
+from datetime import datetime
 
 import paho.mqtt.client as mqtt
-import ssl
 from time import sleep
-import struct
 import matplotlib
-import numpy as np
-from numpy.random import normal
-from random import uniform
 import matplotlib.pyplot as plt
+import pyodbc
 
-MQTT_PORT = 8883
-MQTT_KEEPALIVE_INTERVAL = 100
+MQTT_KEEPALIVE_INTERVAL = 45
+MQTT_HOST = "localhost"
+MQTT_PORT = 1883
 
-MQTT_HOST = "a3r21ql3ppgl2q-ats.iot.us-east-2.amazonaws.com"
-#Konrad config
-CA_ROOT_CERT_FILE = "C:/Users/nuttard/Desktop/AAA/root-CA.crt"
-THING_CERT_FILE = "C:/Users/nuttard/Desktop/AAA/embankment-monitor.cert.pem"
-THING_PRIVATE_KEY = "C:/Users/nuttard/Desktop/AAA/embankment-monitor.private.key"
+SQL_CONNECTION_STRING = 'DRIVER={SQL SERVER};Server=localhost\SQLEXPRESS;Database=master;Trusted_Connection=True;'
 
-#Bartek config
-#CA_ROOT_CERT_FILE = "C:/Users/DP/Desktop/aws-embankment-monitor/aws-stuff-2/root-CA.crt"
-#THING_CERT_FILE = "C:/Users/DP/Desktop/aws-embankment-monitor/aws-stuff-2/embankment-monitor.cert.pem"
-#THING_PRIVATE_KEY = "C:/Users/DP/Desktop/aws-embankment-monitor/aws-stuff-2/embankment-monitor.private.key"
-SPREAD = 0.02  # 0.02
-LENGTH = 1000  # 1000
-LENGTH_BETWEEN = 5  # 5
-HEIGHT = 5  # 5
-HEIGHT_BETWEEN = 1  # 1
-DELAY = 20  # 20s
-BREAK_WIDTH = 80  # 80m (left side + right side)
-
-DATA_LEFT = [[-1]*int(LENGTH//LENGTH_BETWEEN) for i in range(int(HEIGHT//HEIGHT_BETWEEN))]
-DATA_RIGHT = [[-1]*int(LENGTH//LENGTH_BETWEEN) for j in range(int(HEIGHT//HEIGHT_BETWEEN))]
+DELAY = 10  # 10s
+EMBANKMENT_NAME = "Primary Embankment"
+SCALE = 100  # how many pixels per meter of height for one pixel per meter of length
 
 
-def draw(side):
-    data = DATA_RIGHT if side == "Right Embankment" else DATA_LEFT
-    plt.imshow(data, extent=[0, 995, 0, 400], cmap=matplotlib.cm.autumn_r)
+def set_data(sql_cursor):
+    heights = []
+    sql_cursor.execute("select distinct height from Sensor order by height")
+    for row in sql_cursor:
+        heights.append(float(row[0]))
+    lengths = []
+    sql_cursor.execute("select distinct length from Sector where embankment = ? order by length", EMBANKMENT_NAME)
+    for row in sql_cursor:
+        lengths.append(float(row[0]))
+    data = [[-1] * len(lengths) for height in range(len(heights))]
+    return lengths, heights, data
+
+
+def draw(lengths, heights, data):
+    data_copy = fill_gaps(lengths, data)
+    check_for_breaks(lengths, data)
+    plt.imshow(data_copy, extent=[min(lengths), max(lengths), min(heights) * SCALE, max(heights) * SCALE], cmap=matplotlib.cm.autumn_r)
     plt.gca().invert_yaxis()
-    plt.title = side
+    plt.title = EMBANKMENT_NAME
     plt.show()
 
 
@@ -52,22 +45,86 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, msg):
-    side, i, j = msg.topic.split("/")[2:]
+    sector_id, height = msg.topic.split("/")[2:]
     temperature = float(msg.payload.decode("utf-8"))
-    if side == "left":
-        DATA_LEFT[int(i)][int(int(j)//LENGTH_BETWEEN)] = temperature
-    else:
-        DATA_RIGHT[int(i)][int(int(j)//LENGTH_BETWEEN)] = temperature
+    cursor.execute("select distinct length from Sector where sectorID = ?", sector_id)
+    length = float(-1.0)
+    for row in cursor:
+        length = float(row[0])
+    array[ys.index(float(height))][xs.index(length)] = temperature
 
+
+def check_for_breaks(lengths, data):
+    new_data = fill_gaps(lengths, data)
+
+    potential_length_indices = []
+    for height_index in range(len(new_data)):
+        average = sum(new_data[height_index]) / len(new_data[height_index])
+        for length_index in range(len(new_data[0])):
+            if new_data[height_index][length_index] < average - 1:
+                if length_index not in potential_length_indices:
+                    potential_length_indices.append(length_index)
+
+    potential_length_indices.sort()
+    potential_break_indices = []
+    i = -1
+    last_index = -2
+    for length_index in potential_length_indices:
+        if length_index != last_index + 1:
+            i += 1
+            potential_break_indices.append([])
+        potential_break_indices[i].append(length_index)
+        last_index = length_index
+
+    for break_list in potential_break_indices:
+        first = lengths[break_list[0]]
+        last = lengths[break_list[len(break_list) - 1]]
+        if first == last:
+            print("[" + str(datetime.now()) + "] Potential break around " + str(first))
+        else:
+            print("[" + str(datetime.now()) + "] Potential break between " + str(first) + " and " + str(last))
+
+
+def fill_gaps(lengths, data):
+    new_data = data.copy()
+    for height_index in range(len(new_data)):
+        this_index = -1
+        go_back = False
+        for length_index in range(len(new_data[0])):
+            if new_data[height_index][length_index] != -1:
+                last_index = this_index
+                this_index = length_index
+                if go_back:
+                    for empty_index in range(last_index + 1, this_index):
+                        last_length = lengths[last_index]
+                        this_length = lengths[this_index]
+                        empty_length = lengths[empty_index]
+                        last_temperature = new_data[height_index][last_index]
+                        this_temperature = new_data[height_index][this_index]
+                        empty_temperature = last_temperature + (this_temperature - last_temperature) * \
+                            (empty_length - last_length) / (this_length - last_length)
+                        new_data[height_index][empty_index] = empty_temperature
+            else:
+                go_back = True
+    return new_data
+
+
+def sql_connect():
+    conn = pyodbc.connect(SQL_CONNECTION_STRING)
+    return conn.cursor()
+
+
+cursor = sql_connect()
+xs, ys, array = set_data(cursor)
 
 mqttc = mqtt.Client()
-mqttc.tls_set(CA_ROOT_CERT_FILE, certfile=THING_CERT_FILE, keyfile=THING_PRIVATE_KEY, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
 mqttc.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
+sleep(DELAY * 4)
 mqttc.loop_start()
+
 
 while True:
     sleep(DELAY)
-    draw("Left Embankment")
-    draw("Right Embankment")
+    draw(xs, ys, array)

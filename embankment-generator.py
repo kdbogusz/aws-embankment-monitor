@@ -5,13 +5,15 @@ import pyodbc
 from numpy.random import normal
 from random import uniform
 
+import map_visualizer
+
 SPREAD = 0.01  # 0.02
 LENGTH = 1000  # 1000
 LENGTH_BETWEEN = 5  # 5
 HEIGHT = 5  # 5
 HEIGHT_BETWEEN = 1  # 1
 DELAY = 0.01  # 0.01s
-BREAK_WIDTH = 200  # 200m (left side + right side)
+BREAK_WIDTH = 50  # 200m (left side + right side)
 
 MQTT_KEEPALIVE_INTERVAL = 45
 MQTT_HOST = "localhost"
@@ -104,7 +106,7 @@ class Sector:
 
     def break_wall(self, center, break_strength):
         for height in range(len(self.heights)):
-            if self.heights[height][0] < HEIGHT - 1 and 1 - (2 * (abs(center - self.length)) / BREAK_WIDTH) > 0:
+            if self.heights[height][0] < self.heights[len(self.heights) - 1][0] and 1 - (2 * (abs(center - self.length)) / BREAK_WIDTH) > 0:
                 self.heights[height][1].temperature += min(1, break_strength * (
                             1 - (2 * (abs(center - self.length)) / BREAK_WIDTH)) ** 2) * \
                                         (self.heights[height + 1][1].temperature - self.heights[height][1].temperature)
@@ -141,22 +143,13 @@ def program_loop(break_time, break_place, sectors, mqttc):
 
 
 def create_primary_embankment(sql_cursor):
-    lengths = [x * LENGTH_BETWEEN for x in range(0, LENGTH // LENGTH_BETWEEN)]
-    heights = [x * HEIGHT_BETWEEN for x in range(0, HEIGHT // HEIGHT_BETWEEN)]
+    lengths, sensors = map_visualizer.create_embankment()
     sectors = []
     last_temperatures = None
-    for length in lengths:
-        if length == 800.0:
-            new_sector = Sector("Primary Embankment", length, heights[1:], last_temperatures, sql_cursor)
-            sectors.append(new_sector)
-            last_temperatures = new_sector.get_temperatures()
-            new_sector = Sector("Primary Embankment", 803.0, heights, last_temperatures, sql_cursor)
-            sectors.append(new_sector)
-            last_temperatures = new_sector.get_temperatures()
-        else:
-            new_sector = Sector("Primary Embankment", length, heights, last_temperatures, sql_cursor)
-            sectors.append(new_sector)
-            last_temperatures = new_sector.get_temperatures()
+    for i in range(len(lengths)):
+        new_sector = Sector("Primary Embankment", lengths[i], sensors[i], last_temperatures, sql_cursor)
+        sectors.append(new_sector)
+        last_temperatures = new_sector.get_temperatures()
     return sectors
 
 
@@ -193,4 +186,4 @@ sql_create_database(cursor)
 primary_embankment = create_primary_embankment(cursor)
 cursor.commit()
 cursor.close()
-program_loop(1, 400, primary_embankment, client)
+program_loop(1, 200, primary_embankment, client)

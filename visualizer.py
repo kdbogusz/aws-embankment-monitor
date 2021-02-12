@@ -12,9 +12,9 @@ MQTT_PORT = 1883
 
 SQL_CONNECTION_STRING = 'DRIVER={SQL SERVER};Server=localhost\SQLEXPRESS;Database=master;Trusted_Connection=True;'
 
-DELAY = 10  # 10s
+DELAY = 30  # 20s
 EMBANKMENT_NAME = "Primary Embankment"
-SCALE = 100  # how many pixels per meter of height for one pixel per meter of length
+SCALE = 10  # how many pixels per meter of height for one pixel per meter of length
 
 
 def set_data(sql_cursor):
